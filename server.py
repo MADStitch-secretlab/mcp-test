@@ -25,6 +25,7 @@ MCP_PATH = "/mcp"
 
 ACCESS_TOKEN = "fake_access_token_abc123"
 REFRESH_TOKEN = "fake_refresh_token_xyz789"
+AUTH_CODE = "fake_authorization_code_123"
 CLIENT_ID = "fake-client-id"
 
 
@@ -102,14 +103,27 @@ async def register(request: Request) -> JSONResponse:
 async def authorize(request: Request) -> RedirectResponse:
     qs = request.query_params
     redirect_uri = qs.get("redirect_uri", "")
+    state = qs.get("state", "")
+    callback_url = append_query_params(redirect_uri, {"code": AUTH_CODE, "state": state}) if redirect_uri else ""
     forward_params = {
+        "response_type": qs.get("response_type", "code"),
         "redirect_uri": redirect_uri,
         "redirectUrl": redirect_uri,
         "redirect_url": redirect_uri,
-        "state": qs.get("state", ""),
+        "redirectUri": redirect_uri,
+        "redirectURL": redirect_uri,
+        "redirecturl": redirect_uri,
+        "callbackUrl": callback_url,
+        "callback_url": callback_url,
+        "returnUrl": callback_url,
+        "return_url": callback_url,
+        "returnTo": callback_url,
+        "state": state,
+        "code": AUTH_CODE,
         "code_challenge": qs.get("code_challenge", ""),
         "code_challenge_method": qs.get("code_challenge_method", "S256"),
         "client_id": qs.get("client_id", ""),
+        "resource": qs.get("resource", ""),
     }
     return RedirectResponse(append_query_params(LOGIN_URL, forward_params), status_code=302)
 
