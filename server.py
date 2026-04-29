@@ -27,6 +27,7 @@ ACCESS_TOKEN = "fake_access_token_abc123"
 REFRESH_TOKEN = "fake_refresh_token_xyz789"
 AUTH_CODE = "fake_authorization_code_123"
 CLIENT_ID = "fake-client-id"
+AUTH_REQUESTS: dict[str, dict[str, str]] = {}
 
 
 auth = StaticTokenVerifier(
@@ -104,28 +105,79 @@ async def authorize(request: Request) -> RedirectResponse:
     qs = request.query_params
     redirect_uri = qs.get("redirect_uri", "")
     state = qs.get("state", "")
-    callback_url = append_query_params(redirect_uri, {"code": AUTH_CODE, "state": state}) if redirect_uri else ""
+    AUTH_REQUESTS[state] = {
+        "redirect_uri": redirect_uri,
+        "client_id": qs.get("client_id", ""),
+        "resource": qs.get("resource", ""),
+        "code_challenge": qs.get("code_challenge", ""),
+        "code_challenge_method": qs.get("code_challenge_method", "S256"),
+    }
+    mcp_callback_url = append_query_params(f"{MCP_BASE_URL}/login/callback", {"state": state})
     forward_params = {
         "response_type": qs.get("response_type", "code"),
-        "redirect_uri": redirect_uri,
-        "redirectUrl": redirect_uri,
-        "redirect_url": redirect_uri,
-        "redirectUri": redirect_uri,
-        "redirectURL": redirect_uri,
-        "redirecturl": redirect_uri,
-        "callbackUrl": callback_url,
-        "callback_url": callback_url,
-        "returnUrl": callback_url,
-        "return_url": callback_url,
-        "returnTo": callback_url,
+        "redirect_uri": mcp_callback_url,
+        "redirectUrl": mcp_callback_url,
+        "redirect_url": mcp_callback_url,
+        "redirectUri": mcp_callback_url,
+        "redirectURL": mcp_callback_url,
+        "redirecturl": mcp_callback_url,
+        "callbackUrl": mcp_callback_url,
+        "callback_url": mcp_callback_url,
+        "returnUrl": mcp_callback_url,
+        "return_url": mcp_callback_url,
+        "returnTo": mcp_callback_url,
+        "mcp_callback_url": mcp_callback_url,
         "state": state,
-        "code": AUTH_CODE,
         "code_challenge": qs.get("code_challenge", ""),
         "code_challenge_method": qs.get("code_challenge_method", "S256"),
         "client_id": qs.get("client_id", ""),
         "resource": qs.get("resource", ""),
     }
     return RedirectResponse(append_query_params(LOGIN_URL, forward_params), status_code=302)
+
+
+async def get_login_success_state(request: Request) -> str:
+    state = request.query_params.get("state", "")
+    if state:
+        return state
+
+    content_type = request.headers.get("content-type", "")
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+        except Exception:
+            return ""
+        return str(body.get("state", ""))
+
+    try:
+        form = await request.form()
+    except Exception:
+        return ""
+    return str(form.get("state", ""))
+
+
+async def complete_login(request: Request) -> RedirectResponse | JSONResponse:
+    state = await get_login_success_state(request)
+    auth_request = AUTH_REQUESTS.get(state)
+    if not auth_request:
+        return JSONResponse(
+            {"error": "unknown_state", "error_description": "No pending OAuth request for this state."},
+            status_code=400,
+        )
+
+    redirect_uri = auth_request["redirect_uri"]
+    claude_callback_url = append_query_params(redirect_uri, {"code": AUTH_CODE, "state": state})
+    return RedirectResponse(claude_callback_url, status_code=302)
+
+
+@mcp.custom_route("/login/callback", methods=["GET", "POST"])
+async def login_callback(request: Request) -> RedirectResponse | JSONResponse:
+    return await complete_login(request)
+
+
+@mcp.custom_route("/login/success", methods=["GET", "POST"])
+async def login_success(request: Request) -> RedirectResponse | JSONResponse:
+    return await complete_login(request)
 
 
 @mcp.custom_route("/token", methods=["POST"])

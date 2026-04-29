@@ -6,6 +6,7 @@ Fake OAuth MCP server for validating Claude Desktop custom connector behavior.
 
 - OAuth metadata discovery from Claude Desktop.
 - Browser redirect from `/authorize` to the external login app.
+- Login completion through the MCP bridge callback at `/login/callback`.
 - Code exchange against `/token`.
 - Bearer token attachment on later MCP calls.
 - Authenticated access to the `hello` and `whoami` tools.
@@ -66,8 +67,22 @@ http://localhost:8000/mcp
 curl http://localhost:8000/.well-known/oauth-authorization-server
 curl http://localhost:8000/.well-known/oauth-protected-resource
 curl -I "http://localhost:8000/authorize?redirect_uri=http://localhost:9999/callback&state=test&code_challenge=abc&code_challenge_method=S256&client_id=fake-client-id"
+curl -I "http://localhost:8000/login/callback?state=test"
 curl -X POST http://localhost:8000/token
 ```
+
+## Login App Contract
+
+`/authorize` stores Claude's original `redirect_uri` on the MCP server, then
+sends the browser to `LOGIN_URL` with `redirectUrl` pointing back to:
+
+```text
+https://your-mcp-domain/login/callback?state=...
+```
+
+After login, the frontend should navigate the browser to that `redirectUrl`.
+The MCP server then redirects the browser to Claude's original callback URL with
+`code` and `state` attached.
 
 ## Claude Desktop Connector
 
