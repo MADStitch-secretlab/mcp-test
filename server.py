@@ -133,7 +133,16 @@ async def authorize(request: Request) -> RedirectResponse:
         "client_id": qs.get("client_id", ""),
         "resource": qs.get("resource", ""),
     }
-    return RedirectResponse(append_query_params(LOGIN_URL, forward_params), status_code=302)
+    login_redirect_url = append_query_params(LOGIN_URL, forward_params)
+    print(
+        "[authorize] "
+        f"state={state} "
+        f"claude_redirect_uri={redirect_uri} "
+        f"mcp_callback_url={mcp_callback_url} "
+        f"login_redirect_url={login_redirect_url}",
+        flush=True,
+    )
+    return RedirectResponse(login_redirect_url, status_code=302)
 
 
 async def get_login_success_state(request: Request) -> str:
@@ -160,6 +169,7 @@ async def complete_login(request: Request) -> RedirectResponse | JSONResponse:
     state = await get_login_success_state(request)
     auth_request = AUTH_REQUESTS.get(state)
     if not auth_request:
+        print(f"[login-callback] unknown_state state={state}", flush=True)
         return JSONResponse(
             {"error": "unknown_state", "error_description": "No pending OAuth request for this state."},
             status_code=400,
@@ -167,6 +177,12 @@ async def complete_login(request: Request) -> RedirectResponse | JSONResponse:
 
     redirect_uri = auth_request["redirect_uri"]
     claude_callback_url = append_query_params(redirect_uri, {"code": AUTH_CODE, "state": state})
+    print(
+        "[login-callback] "
+        f"state={state} "
+        f"claude_callback_url={claude_callback_url}",
+        flush=True,
+    )
     return RedirectResponse(claude_callback_url, status_code=302)
 
 
@@ -206,9 +222,9 @@ def whoami() -> str:
 
 
 if __name__ == "__main__":
-    print("Factsheet MCP PoC server starting")
-    print(f"  LOGIN_URL    = {LOGIN_URL}")
-    print(f"  MCP_BASE_URL = {MCP_BASE_URL}")
-    print(f"  MCP_PATH     = {MCP_PATH}")
-    print(f"  PORT         = {PORT}")
+    print("Factsheet MCP PoC server starting", flush=True)
+    print(f"  LOGIN_URL    = {LOGIN_URL}", flush=True)
+    print(f"  MCP_BASE_URL = {MCP_BASE_URL}", flush=True)
+    print(f"  MCP_PATH     = {MCP_PATH}", flush=True)
+    print(f"  PORT         = {PORT}", flush=True)
     mcp.run(transport="http", host="0.0.0.0", port=PORT, path=MCP_PATH)
