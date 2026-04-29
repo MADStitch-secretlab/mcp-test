@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import os
 from time import time
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from fastmcp import FastMCP
 from fastmcp.server.auth.providers.jwt import StaticTokenVerifier
@@ -39,6 +39,13 @@ auth = StaticTokenVerifier(
 )
 
 mcp = FastMCP(name="Factsheet PoC", auth=auth)
+
+
+def append_query_params(url: str, params: dict[str, str]) -> str:
+    parts = urlsplit(url)
+    existing_params = parse_qsl(parts.query, keep_blank_values=True)
+    query = urlencode([*existing_params, *params.items()])
+    return urlunsplit((parts.scheme, parts.netloc, parts.path, query, parts.fragment))
 
 
 @mcp.custom_route("/health", methods=["GET"])
@@ -94,14 +101,17 @@ async def register(request: Request) -> JSONResponse:
 @mcp.custom_route("/authorize", methods=["GET"])
 async def authorize(request: Request) -> RedirectResponse:
     qs = request.query_params
+    redirect_uri = qs.get("redirect_uri", "")
     forward_params = {
-        "redirect_uri": qs.get("redirect_uri", ""),
+        "redirect_uri": redirect_uri,
+        "redirectUrl": redirect_uri,
+        "redirect_url": redirect_uri,
         "state": qs.get("state", ""),
         "code_challenge": qs.get("code_challenge", ""),
         "code_challenge_method": qs.get("code_challenge_method", "S256"),
         "client_id": qs.get("client_id", ""),
     }
-    return RedirectResponse(f"{LOGIN_URL}?{urlencode(forward_params)}", status_code=302)
+    return RedirectResponse(append_query_params(LOGIN_URL, forward_params), status_code=302)
 
 
 @mcp.custom_route("/token", methods=["POST"])

@@ -48,6 +48,12 @@ pip install -r requirements.txt
 python server.py
 ```
 
+## Start Command
+
+```bash
+python server.py
+```
+
 The MCP endpoint is:
 
 ```text
