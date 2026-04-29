@@ -18,7 +18,15 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse, RedirectResponse
 
 
-LOGIN_URL = os.getenv("LOGIN_URL", "http://localhost:3000/login").rstrip("?")
+def normalize_login_url(url: str) -> str:
+    url = url.rstrip("?")
+    parts = urlsplit(url)
+    if parts.scheme and parts.netloc and parts.path in ("", "/"):
+        return urlunsplit((parts.scheme, parts.netloc, "/login", parts.query, parts.fragment))
+    return url
+
+
+LOGIN_URL = normalize_login_url(os.getenv("LOGIN_URL", "http://localhost:3000/login"))
 MCP_BASE_URL = os.getenv("MCP_BASE_URL", "http://localhost:8000").rstrip("/")
 PORT = int(os.getenv("PORT", "8000"))
 MCP_PATH = "/mcp"
