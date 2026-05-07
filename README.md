@@ -22,7 +22,9 @@ Fake OAuth MCP server for validating Claude Desktop custom connector behavior.
 ├── .env.example
 ├── .gitignore
 ├── README.md
-└── PRD_MCP_Server.md
+├── PRD_MCP_Server.md
+├── test_server_company_switch_PRD.md
+└── MCP_SERVER_ARCHITECTURE.md
 ```
 
 ## Environment
@@ -30,6 +32,8 @@ Fake OAuth MCP server for validating Claude Desktop custom connector behavior.
 ```bash
 LOGIN_URL=http://localhost:3000/login
 MCP_BASE_URL=http://localhost:8000
+BACKEND_BASE_URL=http://localhost:3000
+OAUTH_AUTHORIZE_URL=http://localhost:3000/oauth/authorize
 PORT=8000
 ```
 
@@ -38,6 +42,8 @@ For Railway, set:
 ```bash
 MCP_BASE_URL=https://your-railway-domain.up.railway.app
 LOGIN_URL=https://login-poc.vercel.app/login
+BACKEND_BASE_URL=https://login-poc.vercel.app
+OAUTH_AUTHORIZE_URL=https://login-poc.vercel.app/oauth/authorize
 ```
 
 ## Local Run
@@ -83,6 +89,28 @@ https://your-mcp-domain/login/callback?state=...
 After login, the frontend should navigate the browser to that `redirectUrl`.
 The MCP server then redirects the browser to Claude's original callback URL with
 `code` and `state` attached.
+
+## Company Switching Test Tools
+
+The server exposes the company-switching test tools from
+`test_server_company_switch_PRD.md`:
+
+- `list_companies`: returns the authenticated user's companies.
+- `switch_company_by_code`: switches company using a `company_code`.
+- `switch_company`: tries MCP elicitation and gracefully falls back when unsupported.
+- `switch_company_oauth`: returns a browser URL for OAuth-style company switching.
+- `get_portfolio_summary`: test helper for company-scoped data isolation.
+
+The company list and company-switch token APIs live in the frontend backend.
+Point `BACKEND_BASE_URL` at the login app origin so the MCP server calls:
+
+```text
+{BACKEND_BASE_URL}/mcp/auth/companies
+{BACKEND_BASE_URL}/mcp/auth/token
+```
+
+For local fallback testing, the MCP server also keeps mock implementations of
+those two endpoints.
 
 ## Claude Desktop Connector
 
