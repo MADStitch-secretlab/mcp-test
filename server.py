@@ -222,9 +222,10 @@ async def register(request: Request) -> JSONResponse:
     return JSONResponse(
         {
             "client_id": CLIENT_ID,
-            "client_secret": None,
             "client_id_issued_at": int(time()),
             "redirect_uris": body.get("redirect_uris", []),
+            "grant_types": body.get("grant_types", ["authorization_code"]),
+            "response_types": body.get("response_types", ["code"]),
             "token_endpoint_auth_method": "none",
         }
     )
